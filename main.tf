@@ -36,6 +36,20 @@ resource "aws_subnet" "private_subnet" {
   }
 }
 
+resource "aws_internet_gateway" "gw" {
+  vpc_id = aws_vpc.main.id
+
+  tags = {
+    Name = "cwc-igw"
+  }
+}
+
+output "vpc_id" {
+  value = aws_vpc.main.id
+
+}
+
+
 # resource "aws_instance" "app_server" {
 #   ami           = "ami-0f88e80871fd81e91"
 #   instance_type = "t2.micro"
