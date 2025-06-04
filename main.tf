@@ -62,6 +62,21 @@ resource "aws_route_table_association" "public_subnet_association" {
   route_table_id = aws_route_table.public_route_table.id
 }
 
+resource "tls_private_key" "private_key" {
+  algorithm = "RSA"
+  rsa_bits = 4096
+}
+
+resource "aws_key_pair" "key" {
+  key_name   = "cwc-key"
+  public_key = tls_private_key.private_key.public_key_openssh
+}
+
+resource "local_file" "tf_key" {
+  content  = tls_private_key.private_key.private_key_pem
+  filename = "cwc-key.pem"
+
+}
 
 resource "aws_instance" "public_instance" {
   ami           = "ami-02457590d33d576c3"
