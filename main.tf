@@ -63,11 +63,14 @@ resource "aws_route_table_association" "public_subnet_association" {
 }
 
 
-# resource "aws_instance" "app_server" {
-#   ami           = "ami-0f88e80871fd81e91"
-#   instance_type = "t2.micro"
-#   tags = {
-#     Name = "ExampleAppServerInstance"
-#   }
-# }
+resource "aws_instance" "public_instance" {
+  ami           = "ami-02457590d33d576c3"
+  instance_type = "t3.micro"
+
+  subnet_id = aws_subnet.public_subnet.id
+  associate_public_ip_address = true
+  tags = {
+    Name = "cwc-public-ec2"
+  }
+}
 
