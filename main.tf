@@ -84,6 +84,8 @@ resource "aws_instance" "public_instance" {
 
   subnet_id = aws_subnet.public_subnet.id
   associate_public_ip_address = true
+  key_name = aws_key_pair.key.key_name
+
   tags = {
     Name = "cwc-public-ec2"
   }
