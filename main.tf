@@ -78,14 +78,50 @@ resource "local_file" "tf_key" {
 
 }
 
+
+resource "aws_security_group" "cwc_public_sg" {
+  name        = "allow_traffic"
+  description = "Allow SSH and TCP inbound traffic and all outbound traffic"
+  vpc_id      = aws_vpc.main.id
+
+  ingress  {
+    from_port = 22
+    to_port =22 
+    protocol ="tcp"
+    cidr_blocks =["0.0.0.0/0"]
+  }
+
+  ingress  {
+    from_port = 80
+    to_port =80
+    protocol ="tcp"
+    cidr_blocks =["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port = 0
+    to_port =0
+    protocol ="-1"
+    cidr_blocks =["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "cwc-public-sg"
+  }
+}
+
 resource "aws_instance" "public_instance" {
   ami           = "ami-02457590d33d576c3"
   instance_type = "t3.micro"
 
   subnet_id = aws_subnet.public_subnet.id
+
   associate_public_ip_address = true
+
   key_name = aws_key_pair.key.key_name
 
+  vpc_security_group_ids = [aws_security_group.cwc_public_sg.id]
+  
   tags = {
     Name = "cwc-public-ec2"
   }
