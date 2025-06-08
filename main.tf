@@ -4,11 +4,33 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 4.16"
     }
+    tls ={
+      source  = "hashicorp/tls"
+      version = "~> 4.0"
+    }
+    local ={
+      source = "hashicorp/local"
+      version = "~>2.5"
+    }
+    http ={
+      source  = "hashicorp/http"
+      version = "~> 3.4"
+    }
   }
   required_version = ">= 1.2.0"
 }
 provider "aws" {
   region  = "us-east-1"
+}
+
+provider "tls" {}
+
+provider "local" {}
+
+provider "http" {}
+
+data "http" "myip" {
+  url = "https://ipinfo.io/json"
 }
 
 resource "aws_vpc" "main" {
@@ -88,7 +110,7 @@ resource "aws_security_group" "cwc_public_sg" {
     from_port = 22
     to_port =22 
     protocol ="tcp"
-    cidr_blocks =["0.0.0.0/0"]
+    cidr_blocks =[format("%s/32", jsondecode(data.http.myip.response_body).ip)]
   }
 
   ingress  {
@@ -121,7 +143,7 @@ resource "aws_instance" "public_instance" {
   key_name = aws_key_pair.key.key_name
 
   vpc_security_group_ids = [aws_security_group.cwc_public_sg.id]
-  
+
   tags = {
     Name = "cwc-public-ec2"
   }
