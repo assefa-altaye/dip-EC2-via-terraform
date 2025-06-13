@@ -19,6 +19,7 @@ terraform {
   }
   required_version = ">= 1.2.0"
 }
+
 provider "aws" {
   region  = "us-east-1"
 }
@@ -33,6 +34,10 @@ data "http" "myip" {
   url = "https://ipinfo.io/json"
 }
 
+output "myip" {
+  value = jsondecode(data.http.myip.response_body).ip
+}
+
 resource "aws_vpc" "main" {
   cidr_block       = "10.0.0.0/24"
   instance_tenancy = "default"
@@ -41,18 +46,22 @@ resource "aws_vpc" "main" {
     Name = "cwc-vpc"
   }
 }
+
 resource "aws_subnet" "public_subnet" {
   vpc_id     = aws_vpc.main.id
   cidr_block = "10.0.0.0/25"
+
   availability_zone = "us-east-1a"
 
   tags = {
     Name = "cwc-public-subnet"
   }
 }
+
 resource "aws_subnet" "private_subnet" {
   vpc_id     = aws_vpc.main.id
   cidr_block = "10.0.0.128/25"
+
   availability_zone = "us-east-1a"
 
   tags = {
