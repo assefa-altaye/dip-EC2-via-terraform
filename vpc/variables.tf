@@ -11,12 +11,12 @@ variable "cidr_block" {
 }
 
 variable "public_subnet_cidrs" {
-  type = list[string]
+  type = list(string)
   description = "value of public subnet cidrs"
   default = ["10.0.0.0/26" , "10.0.0.64/26"]
 }
 variable "private_subnet_cidrs" {
-  type = list[string]
+  type = list(string)
   description = "value of public subnet cidrs"
   default = ["10.0.0.128/26" , "10.0.0.192/26"]
 }
