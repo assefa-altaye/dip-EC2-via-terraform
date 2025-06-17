@@ -23,6 +23,6 @@ variable "private_subnet_cidrs" {
 
 variable "app_name" {
   type = string
-  description = "value of the app name"
+  description = "Value of the app name"
 #   default = "cwc"
 }

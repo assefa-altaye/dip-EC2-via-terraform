@@ -34,41 +34,18 @@ data "http" "myip" {
   url = "https://ipinfo.io/json"
 }
 
+module "vpc" {
+  source = "./vpc"
+
+  region = var.region
+  cidr_block = var.cidr_block
+  public_subnet_cidrs = var.public_subnet_cidrs
+  private_subnet_cidrs = var.private_subnet_cidrs
+  app_name = var.app_name
+}
+
 output "myip" {
   value = jsondecode(data.http.myip.response_body).ip
-}
-
-resource "aws_eip" "nat" {
-  vpc = true
-  depends_on = [ aws_internet_gateway.gw ]
-}
-
-resource "aws_nat_gateway" "gw_nat" {
-  allocation_id = aws_eip.nat.id
-  subnet_id     = aws_subnet.public_subnet.id
-
-  tags = {
-    Name = "cwc-natgw"
-  }
-  depends_on = [aws_internet_gateway.gw]
-}
-
-resource "aws_route_table" "private_route_table" {
-  vpc_id = aws_vpc.main.id
-
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_nat_gateway.gw_nat.id
-  }
-
-  tags = {
-    Name = "cwc-private-route-table"
-  }
-}
-
-resource "aws_route_table_association" "private_subnet_association" {
-  subnet_id      = aws_subnet.private_subnet.id
-  route_table_id = aws_route_table.private_route_table.id
 }
 
 resource "tls_private_key" "private_key" {
@@ -90,7 +67,7 @@ resource "local_file" "tf_key" {
 resource "aws_security_group" "cwc_public_sg" {
   name = "cwc_public_sg"
   description = "Allow SSH and TCP inbound traffic and all outbound traffic"
-  vpc_id      = aws_vpc.main.id
+  vpc_id      = module.vpc.vpc_id
 
   ingress  {
     from_port = 22
@@ -122,7 +99,7 @@ resource "aws_instance" "public_instance" {
   ami           = "ami-02457590d33d576c3"
   instance_type = "t3.micro"
 
-  subnet_id = aws_subnet.public_subnet.id
+  subnet_id = module.vpc.public_subnet_ids[0]
 
   associate_public_ip_address = true
 
@@ -138,7 +115,7 @@ resource "aws_instance" "public_instance" {
 resource "aws_security_group" "cwc_private_sg" {
   name = "cwc_private_sg"
   description = "Allow SSH traffic from bastion host, TCP inbound traffic from public subnet, and all outbound traffic"
-  vpc_id      = aws_vpc.main.id
+  vpc_id      = module.vpc.vpc_id
 
   ingress  {
     from_port = 22
@@ -170,7 +147,7 @@ resource "aws_instance" "private_instance" {
   ami           = "ami-02457590d33d576c3"
   instance_type = "t3.micro"
 
-  subnet_id = aws_subnet.private_subnet.id
+  subnet_id = module.vpc.private_subnet_ids[0]
 
   associate_public_ip_address = false
 
@@ -186,7 +163,7 @@ resource "aws_instance" "private_instance" {
 resource "aws_security_group" "cwc_bastion_host_sg" {
   name = "cwc_bastion_host_sg"
   description = "Allow SSH traffic from my IP address and all outbound traffic"
-  vpc_id      = aws_vpc.main.id
+  vpc_id      = module.vpc.vpc_id
 
   ingress  {
     from_port = 22
@@ -211,7 +188,7 @@ resource "aws_instance" "bastion_host" {
   ami           = "ami-02457590d33d576c3"
   instance_type = "t3.micro"
 
-  subnet_id = aws_subnet.public_subnet.id
+  subnet_id = module.vpc.public_subnet_ids[0]
 
   associate_public_ip_address = true
 
