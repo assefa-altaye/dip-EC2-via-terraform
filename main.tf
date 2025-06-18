@@ -24,15 +24,15 @@ provider "aws" {
   region  = "us-east-1"
 }
 
-provider "tls" {}
+# provider "tls" {}
 
-provider "local" {}
+# provider "local" {}
 
-provider "http" {}
+# provider "http" {}
 
-data "http" "myip" {
-  url = "https://ipinfo.io/json"
-}
+# data "http" "myip" {
+#   url = "https://ipinfo.io/json"
+# }
 
 module "vpc" {
   source = "./vpc"
@@ -44,91 +44,90 @@ module "vpc" {
   app_name = var.app_name
 }
 
-output "myip" {
-  value = jsondecode(data.http.myip.response_body).ip
-}
+# output "myip" {
+#   value = jsondecode(data.http.myip.response_body).ip
+# }
 
-resource "tls_private_key" "private_key" {
-  algorithm = "RSA"
-  rsa_bits = 4096
-}
+# resource "tls_private_key" "private_key" {
+#   algorithm = "RSA"
+#   rsa_bits = 4096
+# }
 
-resource "aws_key_pair" "key" {
-  key_name   = "cwc-key"
-  public_key = tls_private_key.private_key.public_key_openssh
-}
+# resource "aws_key_pair" "key" {
+#   key_name   = "cwc-key"
+#   public_key = tls_private_key.private_key.public_key_openssh
+# }
 
-resource "local_file" "tf_key" {
-  content  = tls_private_key.private_key.private_key_pem
-  filename = "cwc-key.pem"
+# resource "local_file" "tf_key" {
+#   content  = tls_private_key.private_key.private_key_pem
+#   filename = "cwc-key.pem"
+# }
 
-}
+# resource "aws_security_group" "cwc_public_sg" {
+#   name = "cwc_public_sg"
+#   description = "Allow SSH and TCP inbound traffic and all outbound traffic"
+#   vpc_id      = module.vpc.vpc_id
 
-resource "aws_security_group" "cwc_public_sg" {
-  name = "cwc_public_sg"
-  description = "Allow SSH and TCP inbound traffic and all outbound traffic"
-  vpc_id      = module.vpc.vpc_id
+#   ingress  {
+#     from_port = 22
+#     to_port =22 
+#     protocol ="tcp"
+#     cidr_blocks =[format("%s/32", jsondecode(data.http.myip.response_body).ip)]
+#   }
 
-  ingress  {
-    from_port = 22
-    to_port =22 
-    protocol ="tcp"
-    cidr_blocks =[format("%s/32", jsondecode(data.http.myip.response_body).ip)]
-  }
+#   ingress  {
+#     from_port = 80
+#     to_port =80
+#     protocol ="tcp"
+#     cidr_blocks =["0.0.0.0/0"]
+#   }
 
-  ingress  {
-    from_port = 80
-    to_port =80
-    protocol ="tcp"
-    cidr_blocks =["0.0.0.0/0"]
-  }
+#   egress {
+#     from_port = 0
+#     to_port =0
+#     protocol ="-1"
+#     cidr_blocks =["0.0.0.0/0"]
+#   }
 
-  egress {
-    from_port = 0
-    to_port =0
-    protocol ="-1"
-    cidr_blocks =["0.0.0.0/0"]
-  }
+#   tags = {
+#     Name = "cwc-public-sg"
+#   }
+# }
 
-  tags = {
-    Name = "cwc-public-sg"
-  }
-}
+# resource "aws_instance" "public_instance" {
+#   ami           = "ami-02457590d33d576c3"
+#   instance_type = "t3.micro"
 
-resource "aws_instance" "public_instance" {
-  ami           = "ami-02457590d33d576c3"
-  instance_type = "t3.micro"
+#   subnet_id = module.vpc.public_subnet_ids[0]
 
-  subnet_id = module.vpc.public_subnet_ids[0]
+#   associate_public_ip_address = true
 
-  associate_public_ip_address = true
+#   key_name = aws_key_pair.key.key_name
 
-  key_name = aws_key_pair.key.key_name
+#   vpc_security_group_ids = [aws_security_group.cwc_public_sg.id]
 
-  vpc_security_group_ids = [aws_security_group.cwc_public_sg.id]
-
-  tags = {
-    Name = "cwc-public-ec2"
-  }
-}
+#   tags = {
+#     Name = "cwc-public-ec2"
+#   }
+# }
 
 resource "aws_security_group" "cwc_private_sg" {
   name = "cwc_private_sg"
-  description = "Allow SSH traffic from bastion host, TCP inbound traffic from public subnet, and all outbound traffic"
+  description = "Allow TCP inbound traffic from public subnet, and all outbound traffic"
   vpc_id      = module.vpc.vpc_id
 
-  ingress  {
-    from_port = 22
-    to_port =22 
-    protocol ="tcp"
-    security_groups  =[aws_security_group.cwc_bastion_host_sg.id]
-  }
+  # ingress  {
+  #   from_port = 22
+  #   to_port =22 
+  #   protocol ="tcp"
+  #   security_groups  =[aws_security_group.cwc_bastion_host_sg.id]
+  # }
 
   ingress  {
     from_port = 80
     to_port =80
     protocol ="tcp"
-    cidr_blocks =["10.0.0.0/25"]
+    cidr_blocks =["0.0.0.0/0"]
   }
 
   egress {
@@ -144,59 +143,60 @@ resource "aws_security_group" "cwc_private_sg" {
 }
 
 resource "aws_instance" "private_instance" {
+  count = 2
   ami           = "ami-02457590d33d576c3"
   instance_type = "t3.micro"
 
-  subnet_id = module.vpc.private_subnet_ids[0]
+  subnet_id = module.vpc.private_subnet_ids[count.index]
 
   associate_public_ip_address = false
 
-  key_name = aws_key_pair.key.key_name
+  # key_name = aws_key_pair.key.key_name
 
   vpc_security_group_ids = [aws_security_group.cwc_private_sg.id]
 
   tags = {
-    Name = "cwc-private-ec2"
+    Name = "${var.app_name}-private-ec2-${count.index + 1}"
   }
 }
 
-resource "aws_security_group" "cwc_bastion_host_sg" {
-  name = "cwc_bastion_host_sg"
-  description = "Allow SSH traffic from my IP address and all outbound traffic"
-  vpc_id      = module.vpc.vpc_id
+# resource "aws_security_group" "cwc_bastion_host_sg" {
+#   name = "cwc_bastion_host_sg"
+#   description = "Allow SSH traffic from my IP address and all outbound traffic"
+#   vpc_id      = module.vpc.vpc_id
 
-  ingress  {
-    from_port = 22
-    to_port =22 
-    protocol ="tcp"
-    cidr_blocks =[format("%s/32", jsondecode(data.http.myip.response_body).ip)]
-  }
+#   ingress  {
+#     from_port = 22
+#     to_port =22 
+#     protocol ="tcp"
+#     cidr_blocks =[format("%s/32", jsondecode(data.http.myip.response_body).ip)]
+#   }
 
-  egress {
-    from_port = 0
-    to_port =0
-    protocol ="-1"
-    cidr_blocks =["0.0.0.0/0"]
-  }
+#   egress {
+#     from_port = 0
+#     to_port =0
+#     protocol ="-1"
+#     cidr_blocks =["0.0.0.0/0"]
+#   }
 
-  tags = {
-    Name = "cwc-private-sg"
-  }
-}
+#   tags = {
+#     Name = "cwc-private-sg"
+#   }
+# }
 
-resource "aws_instance" "bastion_host" {
-  ami           = "ami-02457590d33d576c3"
-  instance_type = "t3.micro"
+# resource "aws_instance" "bastion_host" {
+#   ami           = "ami-02457590d33d576c3"
+#   instance_type = "t3.micro"
 
-  subnet_id = module.vpc.public_subnet_ids[0]
+#   subnet_id = module.vpc.public_subnet_ids[0]
 
-  associate_public_ip_address = true
+#   associate_public_ip_address = true
 
-  key_name = aws_key_pair.key.key_name
+#   key_name = aws_key_pair.key.key_name
 
-  vpc_security_group_ids = [aws_security_group.cwc_bastion_host_sg.id]
+#   vpc_security_group_ids = [aws_security_group.cwc_bastion_host_sg.id]
 
-  tags = {
-    Name = "cwc-bastion-host-ec2"
-  }
-}
+#   tags = {
+#     Name = "cwc-bastion-host-ec2"
+#   }
+# }
