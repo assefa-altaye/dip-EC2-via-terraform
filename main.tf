@@ -157,6 +157,8 @@ resource "aws_instance" "private_instance" {
 
   iam_instance_profile = aws_iam_instance_profile.ec2_profile.name
 
+  user_data = file("./script.sh")
+
   tags = {
     Name = "${var.app_name}-private-ec2-${count.index + 1}"
   }
