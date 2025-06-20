@@ -127,7 +127,7 @@ resource "aws_security_group" "cwc_private_sg" {
     from_port = 80
     to_port =80
     protocol ="tcp"
-    cidr_blocks =["0.0.0.0/0"]
+    security_groups = [aws_security_group.lb_sg.id]
   }
 
   egress {
@@ -230,4 +230,63 @@ resource "aws_iam_role_policy_attachment" "ec2_policy_attachment" {
 resource "aws_iam_instance_profile" "ec2_profile" {
   name = "${var.app_name}-ec2-profile"
   role = aws_iam_role.ec2_role.name
+}
+
+resource "aws_security_group" "lb_sg" {
+  name = "${var.app_name}-lb-sg"
+  description = "Load balancer SG"
+  vpc_id = module.vpc.vpc_id
+
+  tags = {
+    Name = "${var.app_name}-lb-dg"
+  }
+}
+
+resource "aws_vpc_security_group_ingress_rule" "allow_tcp_traffic" {
+  security_group_id = aws_security_group.lb_sg.id
+  cidr_ipv4 = "0.0.0.0/0"
+  from_port = 80
+  to_port = 80
+  ip_protocol = "tcp"
+}
+
+resource "aws_vpc_security_group_egress_rule" "allow_all_traffic" {
+  security_group_id = aws_security_group.lb_sg.id
+  cidr_ipv4 = "0.0.0.0/0"
+  from_port = 80
+  to_port = 80
+  ip_protocol = "-1"
+}
+
+resource "aws_lb" "load_balancer" {
+  name = "${var.app_name}-load-balancer"
+  internal = false
+  load_balancer_type = "application"
+  security_groups = [aws_security_group.lb_sg.id]
+  subnets = module.vpc.public_subnet_ids
+}
+
+resource "aws_lb_target_group" "target_group" {
+  name = "${var.app_name}-target-group"
+  port = 80
+  protocol = "HTTP"
+  vpc_id = module.vpc.vpc_id
+}
+
+resource "aws_lb_target_group_attachment" "target-group-attachment" {
+  count = 2
+  target_group_arn = aws_lb_target_group.target_group.arn
+  target_id = aws_instance.private_instance[count.index].id
+  port = 80
+}
+
+resource "aws_lb_listener" "listner" {
+  load_balancer_arn = aws_lb.load_balancer.arn
+  port = 80
+  protocol = "HTTP"
+
+  default_action {
+    type = "forward"
+    target_group_arn = aws_lb_target_group.target_group.arn
+  }
 }
