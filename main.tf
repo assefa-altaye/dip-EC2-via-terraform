@@ -111,36 +111,62 @@ module "vpc" {
 #   }
 # }
 
-resource "aws_security_group" "cwc_private_sg" {
-  name = "cwc_private_sg"
-  description = "Allow TCP inbound traffic from public subnet, and all outbound traffic"
-  vpc_id      = module.vpc.vpc_id
-
-  # ingress  {
-  #   from_port = 22
-  #   to_port =22 
-  #   protocol ="tcp"
-  #   security_groups  =[aws_security_group.cwc_bastion_host_sg.id]
-  # }
-
-  ingress  {
-    from_port = 80
-    to_port =80
-    protocol ="tcp"
-    security_groups = [aws_security_group.lb_sg.id]
-  }
-
-  egress {
-    from_port = 0
-    to_port =0
-    protocol ="-1"
-    cidr_blocks =["0.0.0.0/0"]
-  }
+resource "aws_security_group" "private_sg" {
+  name = "${var.app_name}-private-sg"
+  description = "Private SG"
+  vpc_id = module.vpc.vpc_id
 
   tags = {
-    Name = "cwc-private-sg"
+    Name = "${var.app_name}-private-sg"
   }
 }
+
+resource "aws_vpc_security_group_ingress_rule" "allow_tcp_traffic_from_lb" {
+  security_group_id = aws_security_group.private_sg.id
+  from_port = 80
+  to_port = 80
+  ip_protocol = "tcp"
+  referenced_security_group_id = aws_security_group.lb_sg.id
+}
+
+resource "aws_vpc_security_group_egress_rule" "allow_all_traffic_to_private" {
+  security_group_id = aws_security_group.private_sg.id
+  cidr_ipv4 = "0.0.0.0/0"
+  # from_port = 80
+  # to_port = 80
+  ip_protocol = "-1"
+}
+
+# resource "aws_security_group" "cwc_private_sg" {
+#   name = "cwc_private_sg"
+#   description = "Allow TCP inbound traffic from public subnet, and all outbound traffic"
+#   vpc_id      = module.vpc.vpc_id
+
+#   # ingress  {
+#   #   from_port = 22
+#   #   to_port =22 
+#   #   protocol ="tcp"
+#   #   security_groups  =[aws_security_group.cwc_bastion_host_sg.id]
+#   # }
+
+#   ingress  {
+#     from_port = 80
+#     to_port =80
+#     protocol ="tcp"
+#     security_groups = [aws_security_group.lb_sg.id]
+#   }
+
+#   egress {
+#     from_port = 0
+#     to_port =0
+#     protocol ="-1"
+#     cidr_blocks =["0.0.0.0/0"]
+#   }
+
+#   tags = {
+#     Name = "cwc-private-sg"
+#   }
+# }
 
 resource "aws_instance" "private_instance" {
   count = 2
@@ -153,11 +179,13 @@ resource "aws_instance" "private_instance" {
 
   # key_name = aws_key_pair.key.key_name
 
-  vpc_security_group_ids = [aws_security_group.cwc_private_sg.id]
+  vpc_security_group_ids = [aws_security_group.private_sg.id]
 
   iam_instance_profile = aws_iam_instance_profile.ec2_profile.name
 
-  user_data = file("./script.sh")
+  user_data = templatefile("./script.sh", {
+    instance_id = count.index + 1
+  })
 
   tags = {
     Name = "${var.app_name}-private-ec2-${count.index + 1}"
@@ -238,7 +266,7 @@ resource "aws_security_group" "lb_sg" {
   vpc_id = module.vpc.vpc_id
 
   tags = {
-    Name = "${var.app_name}-lb-dg"
+    Name = "${var.app_name}-lb-sg"
   }
 }
 
@@ -250,7 +278,7 @@ resource "aws_vpc_security_group_ingress_rule" "allow_tcp_traffic" {
   ip_protocol = "tcp"
 }
 
-resource "aws_vpc_security_group_egress_rule" "allow_all_traffic" {
+resource "aws_vpc_security_group_egress_rule" "allow_all_traffic_to_lb" {
   security_group_id = aws_security_group.lb_sg.id
   cidr_ipv4 = "0.0.0.0/0"
   from_port = 80
