@@ -12,7 +12,7 @@ Infrastructure as Code using Terraform to provision AWS resources (VPC, EC2). In
 
 ## 🧱 Architecture Diagram
 
-[![Architecture]([./architecture-diagram.png](https://github.com/assefa-altaye/dip-EC2-via-terraform/blob/main/Architecture/Multi%20AZ%20deployment.jpg)](https://github.com/assefa-altaye/dip-EC2-via-terraform/blob/main/Architecture/Multi%20AZ%20deployment.jpg)
+[![Architecture]([./architecture-diagram.png](https://github.com/assefa-altaye/dip-EC2-via-terraform/blob/main/Architecture/Multi%20AZ%20deployment.jpg)]
 
 ## 🚀 Features
 
